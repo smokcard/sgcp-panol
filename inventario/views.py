@@ -15,7 +15,19 @@ def gestion_inventario_view(request):
         
         # Crear Herramienta
         if accion == 'crear_herramienta':
+            # Si viene vacío por alguna razón, lo generamos en backend
             codigo = request.POST.get('codigo_barra', '').strip().upper()
+            if not codigo:
+                ultima = Herramienta.objects.order_by('-id').first()
+                if ultima and ultima.codigo_barra.startswith('HER-'):
+                    try:
+                        n = int(ultima.codigo_barra.split('-')[1])
+                        codigo = f"HER-{str(n+1).zfill(5)}"
+                    except:
+                        codigo = f"HER-{str(Herramienta.objects.count()+1).zfill(5)}"
+                else:
+                    codigo = "HER-00001"
+
             nombre = request.POST.get('nombre', '').strip()
             cat = request.POST.get('categoria', 'General').strip()
             foto = request.FILES.get('imagen') or request.FILES.get('foto')
@@ -50,12 +62,23 @@ def gestion_inventario_view(request):
             return redirect('gestion_inventario')
 
     herramientas = Herramienta.objects.all().order_by('-id')
-    # Ordenar por el identificador del usuario asociado
     trabajadores = Trabajador.objects.select_related('usuario').all().order_by('-usuario_id')
+
+    # Calcular el siguiente código para mostrarlo en el frontend
+    ultima_herr = herramientas.first()
+    if ultima_herr and ultima_herr.codigo_barra.startswith('HER-'):
+        try:
+            num = int(ultima_herr.codigo_barra.split('-')[1])
+            siguiente_codigo = f"HER-{str(num+1).zfill(5)}"
+        except:
+            siguiente_codigo = f"HER-{str(herramientas.count()+1).zfill(5)}"
+    else:
+        siguiente_codigo = "HER-00001"
 
     return render(request, 'inventario/gestion.html', {
         'herramientas': herramientas,
-        'trabajadores': trabajadores
+        'trabajadores': trabajadores,
+        'siguiente_codigo': siguiente_codigo
     })
 
 # --- ACCIONES HERRAMIENTAS ---

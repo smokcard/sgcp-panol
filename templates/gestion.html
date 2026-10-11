@@ -65,8 +65,9 @@
       <form method="POST" enctype="multipart/form-data">
         {% csrf_token %}
         <input type="hidden" name="accion" value="crear_herramienta">
-        <label>CÓDIGO (Ej: HER-00002)</label>
-        <input type="text" name="codigo_barra" required>
+        
+        <label>CÓDIGO (Generado Automáticamente)</label>
+        <input type="text" name="codigo_barra" value="{{ siguiente_codigo }}" readonly style="background: #334155; color: #94a3b8; cursor: not-allowed;">
 
         <label>NOMBRE</label>
         <input type="text" name="nombre" required>
