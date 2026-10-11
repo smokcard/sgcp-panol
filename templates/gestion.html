@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Panel de Administración - SGCP</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { background: #0f172a; color: #f8fafc; font-family: system-ui, sans-serif; margin: 0; padding: 1.5rem; }
+    header { max-width: 1300px; margin: 0 auto 1.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 1rem; }
+    .grid { max-width: 1300px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 1.5rem; }
+    input[type="text"], input[type="email"], select, input[type="file"] { width: 100%; padding: 0.65rem; background: #0f172a; border: 1px solid #334155; border-radius: 6px; color: #fff; box-sizing: border-box; margin-bottom: 0.8rem; }
+    label { font-size: 0.8rem; color: #94a3b8; display: block; margin-bottom: 0.2rem; }
+    button { cursor: pointer; border-radius: 5px; font-weight: bold; border: none; }
+    .btn-green { background: #10b981; color: white; padding: 0.7rem; width: 100%; }
+    .btn-edit { background: #f59e0b; color: white; padding: 0.35rem 0.55rem; font-size: 0.8rem; margin-right: 0.2rem; }
+    .btn-qr { background: #0284c7; color: white; padding: 0.35rem 0.55rem; font-size: 0.8rem; margin-right: 0.2rem; text-decoration: none; display: inline-block; border-radius: 5px; }
+    .btn-del { background: #ef4444; color: white; padding: 0.35rem 0.55rem; font-size: 0.8rem; text-decoration: none; display: inline-block; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.88rem; }
+    th, td { padding: 0.55rem 0.4rem; text-align: left; border-bottom: 1px solid #334155; vertical-align: middle; }
+    th { color: #94a3b8; font-size: 0.75rem; background: #182234; }
+    .alert { padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem; max-width: 1300px; margin-left: auto; margin-right: auto; }
+    .alert-ok { background: rgba(16,185,129,0.2); border: 1px solid #10b981; color: #86efac; }
+    .alert-err { background: rgba(239,68,68,0.2); border: 1px solid #ef4444; color: #fca5a5; }
+
+    .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); justify-content: center; align-items: center; z-index: 100; }
+    .modal-content { background: #1e293b; border: 1px solid #475569; padding: 1.5rem; border-radius: 8px; width: 100%; max-width: 440px; }
+
+    /* Modal Etiqueta Imprimible */
+    .modal-print { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; z-index: 200; }
+    .ticket-card { background: #fff; color: #000; width: 320px; padding: 1.5rem; border-radius: 10px; text-align: center; box-shadow: 0 8px 24px rgba(0,0,0,0.6); }
+    .ticket-card h2 { margin: 0 0 0.5rem; font-size: 1.2rem; }
+    .ticket-qr { width: 180px; height: 180px; margin: 0.8rem auto; display: block; border: 1px solid #ddd; padding: 5px; }
+
+    @media print {
+      body * { visibility: hidden; }
+      #printableArea, #printableArea * { visibility: visible; }
+      #printableArea { position: absolute; left: 0; top: 0; width: 100%; border: none; }
+      .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1 style="margin: 0; font-size: 1.5rem;">⚙️ Panel Administrativo de Pañol</h1>
+      <span style="color: #94a3b8;">Gestión Centralizada de Activos y Personal</span>
+    </div>
+    <div style="display: flex; gap: 1rem; align-items: center;">
+      <a href="{% url 'meson_despacho' %}" style="color: #38bdf8; font-weight: bold; text-decoration: none;">📦 Mesón de Operación</a>
+      <a href="{% url 'logout' %}" style="color: #ef4444; font-weight: bold; text-decoration: none;">Cerrar Sesión</a>
+    </div>
+  </header>
+
+  {% if messages %}
+    {% for m in messages %}
+      <div class="alert {% if m.tags == 'error' %}alert-err{% else %}alert-ok{% endif %}">{{ m }}</div>
+    {% endfor %}
+  {% endif %}
+
+  <div class="grid">
+    <!-- HERRAMIENTAS -->
+    <div class="card">
+      <h2 style="margin-top: 0; font-size: 1.2rem;">🧰 Registrar Nueva Herramienta</h2>
+      <form method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="hidden" name="accion" value="crear_herramienta">
+        <label>CÓDIGO (Ej: HER-00002)</label>
+        <input type="text" name="codigo_barra" required>
+
+        <label>NOMBRE</label>
+        <input type="text" name="nombre" required>
+
+        <label>CATEGORÍA</label>
+        <input type="text" name="categoria" value="Eléctrica">
+
+        <label>FOTOGRAFÍA</label>
+        <input type="file" name="foto" accept="image/*">
+
+        <button type="submit" class="btn-green">Guardar Herramienta</button>
+      </form>
+
+      <h3 style="font-size: 1rem; margin-top: 1.5rem; color: #38bdf8;">Listado de Herramientas</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Nombre</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for h in herramientas %}
+            <tr>
+              <td><strong>{{ h.codigo_barra }}</strong></td>
+              <td>{{ h.nombre }}</td>
+              <td>{{ h.estado }}</td>
+              <td>
+                <button class="btn-qr" onclick="verEtiqueta('{{ h.codigo_barra }}', '{{ h.nombre }}', '{% if h.codigo_qr %}{{ h.codigo_qr.url }}{% elif h.imagen %}{{ h.imagen.url }}{% endif %}')" title="Ver e Imprimir Etiqueta">🏷️</button>
+                <button class="btn-edit" onclick="abrirModalHerramienta('{{ h.id }}', '{{ h.codigo_barra }}', '{{ h.nombre }}', '{{ h.categoria }}', '{{ h.estado }}')" title="Editar">✏️</button>
+                <a href="{% url 'eliminar_herramienta' h.id %}" class="btn-del" onclick="return confirm('¿Eliminar la herramienta {{ h.codigo_barra }}?');" title="Eliminar">🗑️</a>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4" style="color: #94a3b8;">No hay herramientas registradas.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- TRABAJADORES -->
+    <div class="card">
+      <h2 style="margin-top: 0; font-size: 1.2rem;">👷 Registrar Nuevo Trabajador</h2>
+      <form method="POST">
+        {% csrf_token %}
+        <input type="hidden" name="accion" value="crear_trabajador">
+        <label>RUT</label>
+        <input type="text" name="rut" placeholder="Ej: 18.452.731-6" required>
+
+        <label>NOMBRE COMPLETO</label>
+        <input type="text" name="nombre" required>
+
+        <label>EMAIL</label>
+        <input type="email" name="email" required>
+
+        <label>CARGO</label>
+        <input type="text" name="cargo" value="Técnico Especialista">
+
+        <label>ÁREA</label>
+        <input type="text" name="area_trabajo" value="Mantenimiento">
+
+        <button type="submit" class="btn-green">Guardar Trabajador</button>
+      </form>
+
+      <h3 style="font-size: 1rem; margin-top: 1.5rem; color: #38bdf8;">Listado de Trabajadores</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>RUT</th>
+            <th>Nombre</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in trabajadores %}
+            <tr>
+              <td><strong>{{ t.usuario.rut }}</strong></td>
+              <td>{{ t.usuario.nombre }}</td>
+              <td>{% if t.bloqueado %}<span style="color: #ef4444;">Bloqueado</span>{% else %}<span style="color: #10b981;">Activo</span>{% endif %}</td>
+              <td>
+                <button class="btn-edit" onclick="abrirModalTrabajador('{{ t.pk }}', '{{ t.usuario.rut }}', '{{ t.usuario.nombre }}', '{{ t.usuario.email }}', '{{ t.cargo }}', '{{ t.area_trabajo }}', {{ t.bloqueado|yesno:'true,false' }})" title="Editar">✏️</button>
+                <a href="{% url 'eliminar_trabajador' t.pk %}" class="btn-del" onclick="return confirm('¿Eliminar al trabajador {{ t.usuario.nombre }}?');" title="Eliminar">🗑️</a>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4" style="color: #94a3b8;">No hay trabajadores registrados.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- MODAL EDITAR HERRAMIENTA -->
+  <div id="modalH" class="modal">
+    <div class="modal-content">
+      <h3 style="margin-top:0;" id="modalHTitulo">Editar Herramienta</h3>
+      <form id="formEditH" method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+        <label>NOMBRE</label>
+        <input type="text" id="editHNombre" name="nombre" required>
+
+        <label>CATEGORÍA</label>
+        <input type="text" id="editHCat" name="categoria" required>
+
+        <label>ESTADO</label>
+        <select id="editHEstado" name="estado">
+          <option value="DISPONIBLE">DISPONIBLE</option>
+          <option value="PRESTADA">PRESTADA</option>
+          <option value="EN_MANTENCION">EN_MANTENCION</option>
+          <option value="DE_BAJA">DE_BAJA</option>
+        </select>
+
+        <label>ACTUALIZAR FOTO (Opcional)</label>
+        <input type="file" name="foto" accept="image/*">
+
+        <div style="display:flex; gap:0.5rem; margin-top:1rem;">
+          <button type="submit" class="btn-green">Guardar Cambios</button>
+          <button type="button" onclick="cerrarModales()" style="background:#64748b; color:white; padding:0.7rem; width:100%;">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL EDITAR TRABAJADOR -->
+  <div id="modalT" class="modal">
+    <div class="modal-content">
+      <h3 style="margin-top:0;" id="modalTTitulo">Editar Trabajador</h3>
+      <form id="formEditT" method="POST">
+        {% csrf_token %}
+        <label>NOMBRE COMPLETO</label>
+        <input type="text" id="editTNombre" name="nombre" required>
+
+        <label>EMAIL</label>
+        <input type="email" id="editTEmail" name="email" required>
+
+        <label>CARGO</label>
+        <input type="text" id="editTCargo" name="cargo">
+
+        <label>ÁREA DE TRABAJO</label>
+        <input type="text" id="editTArea" name="area_trabajo">
+
+        <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:1rem;">
+          <input type="checkbox" id="editTBloqueado" name="bloqueado" style="width:18px; height:18px;">
+          <label for="editTBloqueado" style="color:#fca5a5; margin:0; cursor:pointer;">¿Bloquear trabajador para préstamos?</label>
+        </div>
+
+        <div style="display:flex; gap:0.5rem;">
+          <button type="submit" class="btn-green">Guardar Cambios</button>
+          <button type="button" onclick="cerrarModales()" style="background:#64748b; color:white; padding:0.7rem; width:100%;">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL IMPRIMIR ETIQUETA -->
+  <div id="modalPrint" class="modal-print">
+    <div class="ticket-card" id="printableArea">
+      <div style="font-weight: 800; font-size: 0.85rem; letter-spacing: 1px; color: #475569; text-transform: uppercase;">SGCP - CONTROL PAÑOL</div>
+      <h2 id="printCod" style="margin-top: 0.4rem; font-family: monospace; font-size: 1.5rem; letter-spacing: 1px;">HER-00001</h2>
+      <p id="printNom" style="font-weight: bold; font-size: 1rem; color: #0f172a; margin-bottom: 0.4rem;">Herramienta</p>
+      
+      <img id="printQrImg" src="" class="ticket-qr" alt="Código QR">
+
+      <p style="font-size: 0.75rem; color: #64748b;">Escanear en mesón para retiro/devolución</p>
+      
+      <div class="no-print" style="display: flex; gap: 0.5rem; margin-top: 1.2rem;">
+        <button onclick="window.print()" style="flex: 1; padding: 0.65rem; background: #0284c7; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">🖨️ Imprimir</button>
+        <button onclick="cerrarEtiqueta()" style="flex: 1; padding: 0.65rem; background: #64748b; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function abrirModalHerramienta(id, cod, nom, cat, estado) {
+      document.getElementById('modalHTitulo').innerText = 'Editar Herramienta: ' + cod;
+      document.getElementById('formEditH').action = '/inventario/herramienta/' + id + '/editar/';
+      document.getElementById('editHNombre').value = nom;
+      document.getElementById('editHCat').value = cat;
+      document.getElementById('editHEstado').value = estado;
+      document.getElementById('modalH').style.display = 'flex';
+    }
+
+    function abrirModalTrabajador(pk, rut, nom, email, cargo, area, bloqueado) {
+      document.getElementById('modalTTitulo').innerText = 'Editar Trabajador: ' + rut;
+      document.getElementById('formEditT').action = '/inventario/trabajador/' + encodeURIComponent(pk) + '/editar/';
+      document.getElementById('editTNombre').value = nom;
+      document.getElementById('editTEmail').value = email;
+      document.getElementById('editTCargo').value = cargo;
+      document.getElementById('editTArea').value = area;
+      document.getElementById('editTBloqueado').checked = bloqueado;
+      document.getElementById('modalT').style.display = 'flex';
+    }
+
+    function cerrarModales() {
+      document.getElementById('modalH').style.display = 'none';
+      document.getElementById('modalT').style.display = 'none';
+    }
+
+    function verEtiqueta(cod, nom, qrUrl) {
+      document.getElementById('printCod').innerText = cod;
+      document.getElementById('printNom').innerText = nom;
+      const img = document.getElementById('printQrImg');
+      if (qrUrl && qrUrl.trim() !== '') {
+        img.src = qrUrl;
+      } else {
+        img.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(cod)}`;
+      }
+      document.getElementById('modalPrint').style.display = 'flex';
+    }
+
+    function cerrarEtiqueta() {
+      document.getElementById('modalPrint').style.display = 'none';
+    }
+  </script>
+</body>
+</html>

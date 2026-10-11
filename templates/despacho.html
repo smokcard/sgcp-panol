@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Mesón de Operación de Pañol - SGCP</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    body { background: #0f172a; color: #f8fafc; font-family: system-ui, sans-serif; margin: 0; padding: 1.5rem; }
+    header { max-width: 1400px; margin: 0 auto 1.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 1rem; }
+    .grid-top { max-width: 1400px; margin: 0 auto 1.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    .grid-bottom { max-width: 1400px; margin: 0 auto 1.5rem; display: grid; grid-template-columns: 1.1fr 1.1fr; gap: 1.5rem; }
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 1.5rem; }
+    input[type="text"], input[type="number"] { width: 100%; padding: 0.75rem; background: #0f172a; border: 1px solid #334155; border-radius: 6px; color: #fff; box-sizing: border-box; }
+    .input-btn { display: flex; gap: 0.5rem; margin-bottom: 1rem; margin-top: 0.3rem; }
+    
+    .prefix-group { display: flex; width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 6px; overflow: hidden; }
+    .prefix-label { background: #1e293b; color: #38bdf8; font-weight: bold; padding: 0.75rem 0.9rem; border-right: 1px solid #334155; user-select: none; font-size: 0.95rem; }
+    .prefix-group input { border: none; background: transparent; padding: 0.75rem; border-radius: 0; }
+    .prefix-group input:focus { outline: none; }
+
+    .btn-cam { background: #3b82f6; border: none; color: white; padding: 0 1rem; border-radius: 6px; cursor: pointer; font-weight: bold; }
+    .btn-add { background: #334155; border: none; color: white; padding: 0 1rem; border-radius: 6px; cursor: pointer; font-weight: bold; }
+    .btn-green { background: #10b981; width: 100%; padding: 0.8rem; border: none; border-radius: 6px; color: white; font-weight: bold; cursor: pointer; margin-top: 1rem; font-size: 1rem; }
+    .btn-blue { background: #2563eb; width: 100%; padding: 0.8rem; border: none; border-radius: 6px; color: white; font-weight: bold; cursor: pointer; margin-top: 1rem; font-size: 1rem; }
+    .btn-qr { background: #0284c7; color: white; border: none; padding: 0.35rem 0.6rem; border-radius: 5px; cursor: pointer; font-size: 0.8rem; font-weight: bold; }
+    .btn-qr:hover { background: #0369a1; }
+
+    table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; font-size: 0.88rem; }
+    th, td { padding: 0.55rem 0.5rem; text-align: left; border-bottom: 1px solid #334155; vertical-align: middle; }
+    th { color: #94a3b8; font-size: 0.75rem; text-transform: uppercase; background: #182234; }
+    .table-scroll { max-height: 280px; overflow-y: auto; margin-top: 0.5rem; border: 1px solid #334155; border-radius: 6px; }
+    #cam-box { display: none; margin: 1rem auto; max-width: 500px; background: #000; border: 2px solid #f59e0b; border-radius: 8px; overflow: hidden; padding: 0.5rem; text-align: center; }
+    .alert { padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem; max-width: 1400px; margin-left: auto; margin-right: auto; }
+    .alert-ok { background: rgba(16,185,129,0.2); border: 1px solid #10b981; color: #86efac; }
+    .alert-err { background: rgba(239,68,68,0.2); border: 1px solid #ef4444; color: #fca5a5; }
+    .badge { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
+    .badge-disp { background: #065f46; color: #a7f3d0; }
+    .badge-prest { background: #854d0e; color: #fde047; }
+    .badge-mant { background: #991b1b; color: #fecaca; }
+    .badge-baja { background: #374151; color: #9ca3af; }
+    .img-thumb { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; border: 1px solid #475569; background: #0f172a; cursor: pointer; transition: transform 0.2s; }
+    .img-thumb:hover { transform: scale(2.4); z-index: 20; position: relative; box-shadow: 0 4px 10px rgba(0,0,0,0.8); }
+    .no-img { width: 44px; height: 44px; border-radius: 6px; background: #334155; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; color: #94a3b8; }
+
+    /* Modal Etiqueta Imprimible */
+    .modal-print { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; z-index: 200; }
+    .ticket-card { background: #fff; color: #000; width: 320px; padding: 1.5rem; border-radius: 10px; text-align: center; box-shadow: 0 8px 24px rgba(0,0,0,0.6); }
+    .ticket-card h2 { margin: 0 0 0.5rem; font-size: 1.2rem; }
+    .ticket-card p { margin: 0.2rem 0; font-size: 0.9rem; color: #333; }
+    .ticket-qr { width: 180px; height: 180px; margin: 0.8rem auto; display: block; border: 1px solid #ddd; padding: 5px; }
+
+    @media print {
+      body * { visibility: hidden; }
+      #printableArea, #printableArea * { visibility: visible; }
+      #printableArea { position: absolute; left: 0; top: 0; width: 100%; border: none; }
+      .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1 style="margin: 0; font-size: 1.5rem;">Mesón de Operación de Pañol</h1>
+      <span style="color: #94a3b8;">Operador: {{ request.user.nombre }} ({% if request.user.es_administrador %}Administrador{% else %}Pañolero{% endif %})</span>
+    </div>
+    <div style="display: flex; gap: 1rem; align-items: center;">
+      {% if request.user.es_administrador %}
+        <a href="{% url 'gestion_inventario' %}" style="color: #f59e0b; font-weight: bold; text-decoration: none;">⚙️ Panel Admin</a>
+      {% endif %}
+      <a href="{% url 'logout' %}" style="color: #ef4444; font-weight: bold; text-decoration: none;">Cerrar Sesión</a>
+    </div>
+  </header>
+
+  {% if messages %}
+    {% for m in messages %}
+      <div class="alert {% if m.tags == 'error' %}alert-err{% else %}alert-ok{% endif %}">{{ m }}</div>
+    {% endfor %}
+  {% endif %}
+
+  <div id="statusBox" class="alert" style="display: none;"></div>
+
+  <!-- Visor de Escáner -->
+  <div id="cam-box">
+    <div style="color: #f59e0b; font-size: 0.85rem; margin-bottom: 0.4rem; font-weight: bold;">
+      Enfoca el código QR o Barra dentro del visor
+    </div>
+    <div id="reader" style="width: 100%;"></div>
+    <button onclick="cerrarCam()" style="width: 100%; margin-top: 0.5rem; padding: 0.6rem; background: #ef4444; color: white; border: none; font-weight: bold; border-radius: 4px; cursor: pointer;">
+      Cerrar Cámara
+    </button>
+  </div>
+
+  <!-- SECCIÓN 1: OPERACIONES DE MESÓN -->
+  <div class="grid-top">
+    <!-- Préstamo -->
+    <div class="card">
+      <h2 style="margin-top: 0; font-size: 1.2rem;">📤 1. Registrar Préstamo (Salida)</h2>
+      <label style="font-size: 0.8rem; color: #94a3b8;">RUT DEL TRABAJADOR</label>
+      <div style="margin-bottom: 1rem; margin-top: 0.3rem;">
+        <input type="text" id="rutIn" placeholder="Ej: 18.452.731-6">
+      </div>
+
+      <label style="font-size: 0.8rem; color: #94a3b8;">CÓDIGO DE HERRAMIENTA</label>
+      <div class="input-btn">
+        <div class="prefix-group">
+          <span class="prefix-label">HER-</span>
+          <input type="text" id="codNumIn" placeholder="Ej: 1 o 00001" onkeypress="if(event.key==='Enter'){event.preventDefault();addItem();}">
+        </div>
+        <button class="btn-add" onclick="addItem()">Agregar</button>
+        <button class="btn-cam" onclick="abrirCam('HERRAMIENTA')">📷</button>
+      </div>
+
+      <table style="margin-bottom: 1rem;">
+        <thead><tr><th>CÓDIGO</th><th>ACCIÓN</th></tr></thead>
+        <tbody id="tbItems"><tr><td colspan="2" style="color: #94a3b8;">Sin herramientas agregadas.</td></tr></tbody>
+      </table>
+
+      <button class="btn-green" id="btnConfirmar">Confirmar Despacho</button>
+    </div>
+
+    <!-- Devolución -->
+    <div class="card">
+      <h2 style="margin-top: 0; font-size: 1.2rem;">📥 2. Registrar Devolución (Retorno)</h2>
+      <form method="POST" onsubmit="prepararDevolucion(event)">
+        {% csrf_token %}
+        <input type="hidden" name="accion_devolucion" value="1">
+        <input type="hidden" id="codDevFinal" name="codigo_devolucion" value="">
+
+        <label style="font-size: 0.8rem; color: #94a3b8;">CÓDIGO DE HERRAMIENTA A DEVOLVER</label>
+        <div class="input-btn">
+          <div class="prefix-group">
+            <span class="prefix-label">HER-</span>
+            <input type="text" id="codDevNum" placeholder="Ej: 1 o 00001" required>
+          </div>
+          <button type="button" class="btn-cam" onclick="abrirCam('DEVOLUCION')">📷</button>
+        </div>
+
+        <label style="font-size: 0.8rem; color: #94a3b8;">OBSERVACIÓN DE RECEPCIÓN</label>
+        <input type="text" name="observacion_devolucion" value="Recepción Conforme">
+
+        <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 1rem;">
+          <input type="checkbox" id="chkMant" name="a_mantencion" style="width: 18px; height: 18px;">
+          <label for="chkMant" style="color: #fca5a5; font-size: 0.9rem; cursor: pointer;">¿Reportar avería / Enviar a Mantenimiento?</label>
+        </div>
+
+        <button type="submit" class="btn-blue">Confirmar Retorno al Pañol</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- SECCIÓN 2: TABLAS INFORMATIVAS -->
+  <div class="grid-bottom">
+    <!-- Tabla 1: Herramientas Registradas -->
+    <div class="card">
+      <h2 style="margin-top: 0; font-size: 1.15rem; display: flex; justify-content: space-between; align-items: center;">
+        <span>🧰 Herramientas Registradas</span>
+        <span style="font-size: 0.85rem; color: #94a3b8;">Total: {{ herramientas|length }}</span>
+      </h2>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Foto</th>
+              <th>Código</th>
+              <th>Herramienta</th>
+              <th>Estado</th>
+              <th>Etiqueta</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for h in herramientas %}
+              <tr>
+                <td>
+                  {% if h.foto %}
+                    <img src="{{ h.foto.url }}" alt="{{ h.nombre }}" class="img-thumb" title="Foto">
+                  {% elif h.imagen %}
+                    <img src="{{ h.imagen.url }}" alt="{{ h.nombre }}" class="img-thumb" title="Foto">
+                  {% else %}
+                    <div class="no-img">S/F</div>
+                  {% endif %}
+                </td>
+                <td><strong>{{ h.codigo_barra }}</strong></td>
+                <td>{{ h.nombre }}<br><small style="color: #94a3b8;">{{ h.categoria }}</small></td>
+                <td>
+                  {% if h.estado == 'DISPONIBLE' %}
+                    <span class="badge badge-disp">Disponible</span>
+                  {% elif h.estado == 'PRESTADA' %}
+                    <span class="badge badge-prest">Prestada</span>
+                  {% elif h.estado == 'EN_MANTENCION' %}
+                    <span class="badge badge-mant">Mantención</span>
+                  {% else %}
+                    <span class="badge badge-baja">De Baja</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <button type="button" class="btn-qr" onclick="verEtiqueta('{{ h.codigo_barra }}', '{{ h.nombre }}', '{% if h.codigo_qr %}{{ h.codigo_qr.url }}{% elif h.imagen %}{{ h.imagen.url }}{% endif %}')" title="Ver e Imprimir Etiqueta">
+                    🏷️ Imprimir
+                  </button>
+                </td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="5" style="color: #94a3b8; text-align: center;">No hay herramientas registradas.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tabla 2: Control de Préstamos y Devoluciones -->
+    <div class="card">
+      <h2 style="margin-top: 0; font-size: 1.15rem;">📋 Control de Préstamos</h2>
+      
+      <h3 style="font-size: 0.95rem; color: #fde047; margin-bottom: 0.3rem;">⏳ Activos en Faena (Pendientes)</h3>
+      <div class="table-scroll" style="max-height: 120px; margin-bottom: 1.2rem;">
+        <table>
+          <thead>
+            <tr>
+              <th>Foto</th>
+              <th>Herramienta</th>
+              <th>Trabajador</th>
+              <th>Fecha</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in detalles_activos %}
+              <tr>
+                <td>
+                  {% if d.herramienta.foto %}
+                    <img src="{{ d.herramienta.foto.url }}" alt="Herramienta" class="img-thumb">
+                  {% elif d.herramienta.imagen %}
+                    <img src="{{ d.herramienta.imagen.url }}" alt="Herramienta" class="img-thumb">
+                  {% else %}
+                    <div class="no-img">S/F</div>
+                  {% endif %}
+                </td>
+                <td><strong>{{ d.herramienta.codigo_barra }}</strong><br><small style="color: #94a3b8;">{{ d.herramienta.nombre }}</small></td>
+                <td>{{ d.prestamo.trabajador.usuario.nombre }}<br><small style="color: #94a3b8;">{{ d.prestamo.trabajador.usuario.rut }}</small></td>
+                <td style="font-size: 0.8rem; color: #94a3b8;">{{ d.prestamo.fecha_prestamo|date:"d/m/Y H:i" }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="4" style="color: #94a3b8; text-align: center;">No hay préstamos activos.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <h3 style="font-size: 0.95rem; color: #86efac; margin-bottom: 0.3rem;">✅ Últimas Devoluciones</h3>
+      <div class="table-scroll" style="max-height: 120px;">
+        <table>
+          <thead>
+            <tr>
+              <th>Herramienta</th>
+              <th>Trabajador</th>
+              <th>Fecha Retorno</th>
+              <th>Observación</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in detalles_devueltos %}
+              <tr>
+                <td><strong>{{ d.herramienta.codigo_barra }}</strong></td>
+                <td>{{ d.prestamo.trabajador.usuario.nombre }}</td>
+                <td style="font-size: 0.8rem; color: #94a3b8;">
+                  {% if d.fecha_devolucion %}
+                    {{ d.fecha_devolucion|date:"d/m/Y H:i" }}
+                  {% else %}
+                    {{ d.prestamo.fecha_prestamo|date:"d/m/Y H:i" }}
+                  {% endif %}
+                </td>
+                <td style="font-size: 0.8rem;">{{ d.observacion_devolucion|default:"Recepción Conforme" }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="4" style="color: #94a3b8; text-align: center;">Aún no hay devoluciones registradas.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE VISUALIZACIÓN E IMPRESIÓN DE ETIQUETA QR -->
+  <div id="modalPrint" class="modal-print">
+    <div class="ticket-card" id="printableArea">
+      <div style="font-weight: 800; font-size: 0.85rem; letter-spacing: 1px; color: #475569; text-transform: uppercase;">SGCP - CONTROL PAÑOL</div>
+      <h2 id="printCod" style="margin-top: 0.4rem; font-family: monospace; font-size: 1.5rem; letter-spacing: 1px;">HER-00001</h2>
+      <p id="printNom" style="font-weight: bold; font-size: 1rem; color: #0f172a; margin-bottom: 0.4rem;">Taladro</p>
+      
+      <img id="printQrImg" src="" class="ticket-qr" alt="Código QR">
+
+      <p style="font-size: 0.75rem; color: #64748b;">Escanear en mesón para retiro/devolución</p>
+      
+      <div class="no-print" style="display: flex; gap: 0.5rem; margin-top: 1.2rem;">
+        <button onclick="window.print()" style="flex: 1; padding: 0.65rem; background: #0284c7; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">🖨️ Imprimir</button>
+        <button onclick="cerrarEtiqueta()" style="flex: 1; padding: 0.65rem; background: #64748b; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const items = [];
+    let html5QrCode = null;
+
+    function formatearCodigo(val) {
+      if (!val) return '';
+      let str = val.trim().toUpperCase();
+      if (str.startsWith('HER-')) {
+        str = str.replace('HER-', '');
+      }
+      if (/^\d+\$/.test(str)) {
+        str = str.padStart(5, '0');
+      }
+      return 'HER-' + str;
+    }
+
+    function render() {
+      const tb = document.getElementById('tbItems');
+      if (items.length === 0) {
+        tb.innerHTML = '<tr><td colspan="2" style="color: #94a3b8;">Sin herramientas agregadas.</td></tr>';
+        return;
+      }
+      tb.innerHTML = items.map((c, i) => `<tr><td><strong>${c}</strong></td><td><button onclick="items.splice(${i},1);render();" style="color: #ef4444; background: none; border: none; cursor: pointer;">Quitar</button></td></tr>`).join('');
+    }
+
+    function addItem(c = null) {
+      let raw = c || document.getElementById('codNumIn').value;
+      if (!raw.trim()) return;
+      const cod = formatearCodigo(raw);
+      if (items.includes(cod)) return alert('La herramienta ya está en la lista de despacho.');
+      items.push(cod);
+      document.getElementById('codNumIn').value = '';
+      render();
+    }
+
+    function prepararDevolucion(e) {
+      const inputVal = document.getElementById('codDevNum').value;
+      if (!inputVal.trim()) {
+        e.preventDefault();
+        return alert('Ingrese el número de la herramienta.');
+      }
+      document.getElementById('codDevFinal').value = formatearCodigo(inputVal);
+    }
+
+    function verEtiqueta(cod, nom, qrUrl) {
+      document.getElementById('printCod').innerText = cod;
+      document.getElementById('printNom').innerText = nom;
+      const img = document.getElementById('printQrImg');
+      if (qrUrl && qrUrl.trim() !== '') {
+        img.src = qrUrl;
+      } else {
+        img.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(cod)}`;
+      }
+      document.getElementById('modalPrint').style.display = 'flex';
+    }
+
+    function cerrarEtiqueta() {
+      document.getElementById('modalPrint').style.display = 'none';
+    }
+
+    async function abrirCam(obj) {
+      const camBox = document.getElementById('cam-box');
+      camBox.style.display = 'block';
+
+      if (html5QrCode) {
+        try { await html5QrCode.stop(); } catch(e) {}
+      }
+
+      html5QrCode = new Html5Qrcode("reader");
+
+      const config = {
+        fps: 15,
+        qrbox: (viewfinderWidth, viewfinderHeight) => {
+          const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+          const edge = Math.floor(minEdge * 0.75);
+          return { width: edge, height: edge };
+        },
+        aspectRatio: 1.0,
+        experimentalFeatures: {
+          useBarCodeDetectorIfSupported: true
+        }
+      };
+
+      try {
+        await html5QrCode.start(
+          { facingMode: "environment" },
+          config,
+          (decodedText) => {
+            cerrarCam();
+            if (obj === 'HERRAMIENTA') {
+              addItem(decodedText);
+            } else if (obj === 'DEVOLUCION') {
+              let clean = decodedText.toUpperCase().replace('HER-', '');
+              document.getElementById('codDevNum').value = clean;
+            }
+          },
+          (errorMessage) => {}
+        );
+      } catch (err) {
+        alert("Error al iniciar cámara: " + err);
+        camBox.style.display = 'none';
+      }
+    }
+
+    async function cerrarCam() {
+      if (html5QrCode) {
+        try {
+          await html5QrCode.stop();
+          html5QrCode.clear();
+        } catch (e) {}
+        html5QrCode = null;
+      }
+      document.getElementById('cam-box').style.display = 'none';
+    }
+
+    document.getElementById('btnConfirmar').onclick = async () => {
+      const rut = document.getElementById('rutIn').value.trim();
+      if (!rut || items.length === 0) return alert('Debe ingresar RUT y al menos una herramienta.');
+
+      const resp = await fetch('/prestamos/api/registrar/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+        body: JSON.stringify({ rut: rut, codigos: items })
+      });
+      const data = await resp.json();
+      const sb = document.getElementById('statusBox');
+      sb.style.display = 'block';
+      if (resp.ok) {
+        sb.className = 'alert alert-ok';
+        sb.innerText = `Préstamo #${data.prestamo.id_prestamo} registrado con éxito para ${data.prestamo.nombre_trabajador}. Actualizando...`;
+        items.length = 0;
+        render();
+        document.getElementById('rutIn').value = '';
+        setTimeout(() => window.location.reload(), 1200);
+      } else {
+        sb.className = 'alert alert-err';
+        sb.innerText = data.detalle || data.error;
+      }
+    };
+
+    function getCookie(n) {
+      let v = document.cookie.split('; ').find(row => row.startsWith(n + '='));
+      return v ? decodeURIComponent(v.split('=')[1]) : '';
+    }
+  </script>
+</body>
+</html>
