@@ -45,7 +45,7 @@ def gestion_inventario_view(request):
                 messages.success(request, f"Herramienta {codigo} creada exitosamente.")
             return redirect('gestion_inventario')
 
-        # Crear Trabajador
+# Crear Trabajador
         elif accion == 'crear_trabajador':
             rut = request.POST.get('rut', '').strip()
             nombre = request.POST.get('nombre', '').strip()
@@ -55,6 +55,9 @@ def gestion_inventario_view(request):
 
             if Usuario.objects.filter(rut=rut).exists():
                 messages.error(request, f"El RUT {rut} ya existe.")
+            elif Usuario.objects.filter(email=email).exists():
+                # NUEVA VALIDACIÓN: Si el correo ya existe, muestra un mensaje de error y no se cae el sistema
+                messages.error(request, f"El correo {email} ya está en uso por otro trabajador.")
             else:
                 u = Usuario.objects.create_user(rut=rut, nombre=nombre, email=email, password='User2026!', es_administrador=False)
                 Trabajador.objects.create(usuario=u, cargo=cargo, area_trabajo=area)
