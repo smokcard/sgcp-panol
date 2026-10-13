@@ -47,7 +47,6 @@ def registro_view(request):
         rol = request.POST.get('rol', 'PANOLERO')
         turno = request.POST.get('turno', '').strip()
 
-        # Mantener los datos en el formulario si hay un error
         contexto_previo = {'rut': rut_raw, 'nombre': nombre, 'email': email, 'rol': rol, 'turno': turno}
 
         # 1. Validación de RUT (Módulo 11)
@@ -64,7 +63,7 @@ def registro_view(request):
             messages.error(request, f"El formato del correo '{email}' es incorrecto.")
             return render(request, 'auth/registro.html', contexto_previo)
 
-        # 3. Validación de duplicados (UNIQUE constraint)
+        # 3. Validación de duplicados
         if Usuario.objects.filter(rut=rut).exists():
             messages.error(request, f"El RUT {rut} ya está registrado en el sistema.")
             return render(request, 'auth/registro.html', contexto_previo)
@@ -72,7 +71,7 @@ def registro_view(request):
             messages.error(request, f"El correo {email} ya está en uso por otro usuario.")
             return render(request, 'auth/registro.html', contexto_previo)
 
-        # 4. Creación del usuario si todo es correcto
+        # 4. Creación del usuario
         es_admin = (rol == 'ADMINISTRADOR')
         u = Usuario.objects.create_user(rut=rut, nombre=nombre, email=email, password=password, es_administrador=es_admin)
         
@@ -86,7 +85,9 @@ def registro_view(request):
 
 def login_view(request):
     if request.method == 'POST':
-        rut = request.POST.get('username', '').strip().upper().replace(".", "")
+        # Buscamos 'username' o 'rut' sin importar cómo se llame en el HTML
+        rut_raw = request.POST.get('username') or request.POST.get('rut', '')
+        rut = rut_raw.strip().upper().replace(".", "")
         password = request.POST.get('password', '')
 
         user = authenticate(request, username=rut, password=password)
