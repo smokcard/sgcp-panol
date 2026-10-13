@@ -9,7 +9,7 @@
     body { background: #0f172a; color: #f8fafc; font-family: system-ui, sans-serif; margin: 0; padding: 1.5rem; }
     header { max-width: 1400px; margin: 0 auto 1.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 1rem; }
     .grid-top { max-width: 1400px; margin: 0 auto 1.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
-    .grid-bottom { max-width: 1400px; margin: 0 auto 1.5rem; display: grid; grid-template-columns: 1.1fr 1.1fr; gap: 1.5rem; }
+    .grid-bottom { max-width: 1400px; margin: 0 auto 1.5rem; display: grid; grid-template-columns: 1.2fr 1fr; gap: 1.5rem; }
     .card { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 1.5rem; }
     input[type="text"], input[type="number"] { width: 100%; padding: 0.75rem; background: #0f172a; border: 1px solid #334155; border-radius: 6px; color: #fff; box-sizing: border-box; }
     .input-btn { display: flex; gap: 0.5rem; margin-bottom: 1rem; margin-top: 0.3rem; }
@@ -96,9 +96,10 @@
     <!-- Préstamo -->
     <div class="card">
       <h2 style="margin-top: 0; font-size: 1.2rem;">📤 1. Registrar Préstamo (Salida)</h2>
-      <label style="font-size: 0.8rem; color: #94a3b8;">RUT DEL TRABAJADOR</label>
+      <label style="font-size: 0.8rem; color: #94a3b8;">RUT DEL TRABAJADOR (Solo números)</label>
       <div style="margin-bottom: 1rem; margin-top: 0.3rem;">
-        <input type="text" id="rutIn" placeholder="Ej: 18.452.731-6">
+        <!-- Se agregó el evento oninput para el autocompletado del formato RUT -->
+        <input type="text" id="rutIn" placeholder="Ej: 18.452.731-6" oninput="this.value = formatRut(this.value)" maxlength="12">
       </div>
 
       <label style="font-size: 0.8rem; color: #94a3b8;">CÓDIGO DE HERRAMIENTA</label>
@@ -301,6 +302,17 @@
     const items = [];
     let html5QrCode = null;
 
+    // --- NUEVA FUNCIÓN: Formatea el RUT automáticamente con puntos y guion ---
+    function formatRut(val) {
+      let clean = val.replace(/[^0-9kK]/g, '').toUpperCase();
+      if (clean.length === 0) return '';
+      if (clean.length <= 1) return clean;
+      let dv = clean.slice(-1);
+      let body = clean.slice(0, -1);
+      let formatBody = body.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+      return formatBody + '-' + dv;
+    }
+
     function formatearCodigo(val) {
       if (!val) return '';
       let str = val.trim().toUpperCase();
@@ -413,13 +425,19 @@
     }
 
     document.getElementById('btnConfirmar').onclick = async () => {
-      const rut = document.getElementById('rutIn').value.trim();
-      if (!rut || items.length === 0) return alert('Debe ingresar RUT y al menos una herramienta.');
+      // 1. Obtiene el RUT con puntos y guion desde la pantalla
+      const rutUI = document.getElementById('rutIn').value.trim();
+      
+      // 2. Le quita SOLO los puntos para mandarlo a la API exactamente como está en la Base de Datos (ej. 18452731-6)
+      const rutClean = rutUI.replace(/\./g, ''); 
+
+      if (!rutClean || items.length === 0) return alert('Debe ingresar RUT y al menos una herramienta.');
 
       const resp = await fetch('/prestamos/api/registrar/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
-        body: JSON.stringify({ rut: rut, codigos: items })
+        // 3. Envía el RUT limpio
+        body: JSON.stringify({ rut: rutClean, codigos: items })
       });
       const data = await resp.json();
       const sb = document.getElementById('statusBox');
