@@ -11,6 +11,9 @@
     input, select { width: 100%; padding: 0.7rem; background: #0f172a; border: 1px solid #334155; border-radius: 6px; color: #fff; margin-top: 0.3rem; margin-bottom: 0.8rem; box-sizing: border-box; }
     button { width: 100%; padding: 0.8rem; background: #10b981; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 1rem; margin-top: 0.5rem; }
     .hidden { display: none; }
+    .alert { padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.9rem; font-weight: 500; }
+    .alert-error, .alert-danger { background: #450a0a; color: #fecaca; border: 1px solid #dc2626; }
+    .alert-success { background: #064e3b; color: #a7f3d0; border: 1px solid #059669; }
   </style>
 </head>
 <body>
@@ -19,31 +22,49 @@
       <span class="badge">SGCP</span>
       <h2 style="margin-top: 0.5rem;">Crear Cuenta de Usuario</h2>
     </div>
+
+    <!-- Bloque de mensajes de Django -->
+    {% if messages %}
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">
+          {{ message }}
+        </div>
+      {% endfor %}
+    {% endif %}
+
     <form method="POST">
       {% csrf_token %}
       <label>RUT</label>
-      <input type="text" name="rut" placeholder="Ej: 11.222.333-4" required>
+      <input type="text" name="rut" value="{{ rut|default:'' }}" placeholder="Ej: 11.222.333-4" required>
+
       <label>NOMBRE COMPLETO</label>
-      <input type="text" name="nombre" placeholder="Ej: Nombre Apellido" required>
+      <input type="text" name="nombre" value="{{ nombre|default:'' }}" placeholder="Ej: Nombre Apellido" required>
+
       <label>CORREO INSTITUCIONAL</label>
-      <input type="email" name="email" placeholder="usuario@pañol.cl" required>
+      <input type="email" name="email" value="{{ email|default:'' }}" placeholder="usuario@pañol.cl" required>
+
       <label>CONTRASEÑA (MÍNIMO 8 CARACTERES)</label>
       <input type="password" name="password" minlength="8" required>
+
       <label>ROL EN EL SISTEMA</label>
       <select name="rol" id="rolSelect" onchange="toggleRol()">
-        <option value="PANOLERO">Pañolero (Solo Préstamos y Devoluciones)</option>
-        <option value="ADMINISTRADOR">Administrador (Control Total e Informes)</option>
+        <option value="PANOLERO" {% if rol == 'PANOLERO' %}selected{% endif %}>Pañolero (Solo Préstamos y Devoluciones)</option>
+        <option value="ADMINISTRADOR" {% if rol == 'ADMINISTRADOR' %}selected{% endif %}>Administrador (Control Total e Informes)</option>
       </select>
-      <div id="boxTurno">
+
+      <div id="boxTurno" class="{% if rol == 'ADMINISTRADOR' %}hidden{% endif %}">
         <label>TURNO</label>
-        <input type="text" name="turno" placeholder="Ej: Turno Mañana">
+        <input type="text" name="turno" value="{{ turno|default:'' }}" placeholder="Ej: Turno Mañana">
       </div>
+
       <button type="submit">Registrar Usuario</button>
     </form>
+
     <div style="text-align: center; margin-top: 1.2rem; font-size: 0.9rem;">
       ¿Ya tienes cuenta? <a href="{% url 'login' %}" style="color: #f59e0b; text-decoration: none; font-weight: bold;">Iniciar Sesión</a>
     </div>
   </div>
+
   <script>
     function toggleRol() {
       const rol = document.getElementById('rolSelect').value;

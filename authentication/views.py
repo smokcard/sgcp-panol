@@ -39,20 +39,22 @@ def logout_view(request):
 def registro_view(request):
     if request.method == 'POST':
         rut = request.POST.get('rut', '').strip()
+        email = request.POST.get('email', '').strip().lower()
         nombre = request.POST.get('nombre', '').strip()
-        email = request.POST.get('email', '').strip()
-        password = request.POST.get('password', '')
-        rol = request.POST.get('rol', 'PANOLERO')
-        turno = request.POST.get('turno', '').strip()
+        password = request.POST.get('password')
+        rol = request.POST.get('rol')
+        
+        # 1. Validar si ya existe el correo
+        if Usuario.objects.filter(email=email).exists():
+            messages.error(request, 'El correo electrónico ya se encuentra registrado.')
+            return render(request, 'auth/registro.html', {'rut': rut, 'nombre': nombre})
 
-        if not rut or not nombre or not email or not password:
-            messages.error(request, "Todos los campos obligatorios deben completarse.")
-            return render(request, 'auth/registro.html')
-
+        # 2. Validar si ya existe el RUT (si tu modelo también tiene rut unique=True)
         if Usuario.objects.filter(rut=rut).exists():
-            messages.error(request, f"El RUT {rut} ya se encuentra registrado.")
-            return render(request, 'auth/registro.html')
+            messages.error(request, 'El RUT ingresado ya está registrado.')
+            return render(request, 'auth/registro.html', {'email': email, 'nombre': nombre})
 
+        # 3. Proceder con la creación
         es_admin = (rol == 'ADMINISTRADOR')
         user = Usuario.objects.create_user(
             rut=rut,
@@ -62,11 +64,7 @@ def registro_view(request):
             es_administrador=es_admin,
             is_staff=es_admin
         )
-
-        if not es_admin:
-            Panolero.objects.create(usuario=user, turno=turno or "General")
-
-        messages.success(request, f"Cuenta de {rol} creada exitosamente. Inicia sesión.")
+        messages.success(request, 'Usuario registrado con éxito. Ahora puedes iniciar sesión.')
         return redirect('login')
 
     return render(request, 'auth/registro.html')
