@@ -1,8 +1,38 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError
 from .models import Herramienta, EstadoHerramienta
 from authentication.models import Trabajador, Usuario
+
+def validar_rut_chileno(rut):
+    """Valida el RUT usando el algoritmo de Módulo 11."""
+    rut = rut.upper().replace("-", "").replace(".", "")
+    if len(rut) < 8 or len(rut) > 9:
+        return False
+    cuerpo = rut[:-1]
+    dv_ingresado = rut[-1]
+    if not cuerpo.isdigit():
+        return False
+    
+    suma = 0
+    multiplo = 2
+    for c in reversed(cuerpo):
+        suma += int(c) * multiplo
+        multiplo += 1
+        if multiplo == 8:
+            multiplo = 2
+            
+    dv_calculado = 11 - (suma % 11)
+    if dv_calculado == 11:
+        dv_esperado = '0'
+    elif dv_calculado == 10:
+        dv_esperado = 'K'
+    else:
+        dv_esperado = str(dv_calculado)
+        
+    return dv_ingresado == dv_esperado
 
 @login_required
 def gestion_inventario_view(request):
@@ -15,7 +45,6 @@ def gestion_inventario_view(request):
         
         # Crear Herramienta
         if accion == 'crear_herramienta':
-            # Si viene vacío por alguna razón, lo generamos en backend
             codigo = request.POST.get('codigo_barra', '').strip().upper()
             if not codigo:
                 ultima = Herramienta.objects.order_by('-id').first()
@@ -45,18 +74,33 @@ def gestion_inventario_view(request):
                 messages.success(request, f"Herramienta {codigo} creada exitosamente.")
             return redirect('gestion_inventario')
 
-# Crear Trabajador
+        # Crear Trabajador
         elif accion == 'crear_trabajador':
-            rut = request.POST.get('rut', '').strip()
+            rut_raw = request.POST.get('rut', '').strip()
             nombre = request.POST.get('nombre', '').strip()
             email = request.POST.get('email', '').strip()
             cargo = request.POST.get('cargo', 'Operario').strip()
             area = request.POST.get('area_trabajo', 'Faena').strip()
 
+            # 1. Validación de RUT (Módulo 11)
+            if not validar_rut_chileno(rut_raw):
+                messages.error(request, f"El RUT '{rut_raw}' no es válido. Revise el dígito verificador.")
+                return redirect('gestion_inventario')
+            
+            # Limpiar RUT para guardado uniforme (sin puntos)
+            rut = rut_raw.upper().replace(".", "")
+
+            # 2. Validación de formato de Correo Electrónico
+            try:
+                validate_email(email)
+            except ValidationError:
+                messages.error(request, f"El formato del correo '{email}' es incorrecto.")
+                return redirect('gestion_inventario')
+
+            # 3. Validación de duplicados
             if Usuario.objects.filter(rut=rut).exists():
-                messages.error(request, f"El RUT {rut} ya existe.")
+                messages.error(request, f"El RUT {rut} ya existe en el sistema.")
             elif Usuario.objects.filter(email=email).exists():
-                # NUEVA VALIDACIÓN: Si el correo ya existe, muestra un mensaje de error y no se cae el sistema
                 messages.error(request, f"El correo {email} ya está en uso por otro trabajador.")
             else:
                 u = Usuario.objects.create_user(rut=rut, nombre=nombre, email=email, password='User2026!', es_administrador=False)
@@ -85,7 +129,6 @@ def gestion_inventario_view(request):
     })
 
 # --- ACCIONES HERRAMIENTAS ---
-
 @login_required
 def editar_herramienta(request, pk):
     if not request.user.es_administrador:
@@ -119,7 +162,6 @@ def eliminar_herramienta(request, pk):
     return redirect('gestion_inventario')
 
 # --- ACCIONES TRABAJADORES ---
-
 @login_required
 def editar_trabajador(request, pk):
     if not request.user.es_administrador:
@@ -127,8 +169,16 @@ def editar_trabajador(request, pk):
     trabajador = get_object_or_404(Trabajador, pk=pk)
 
     if request.method == 'POST':
+        # También puedes añadir validación de email aquí si se permite su edición
+        nuevo_email = request.POST.get('email', trabajador.usuario.email).strip()
+        try:
+            validate_email(nuevo_email)
+            trabajador.usuario.email = nuevo_email
+        except ValidationError:
+            messages.error(request, "El nuevo formato de correo no es válido.")
+            return redirect('gestion_inventario')
+
         trabajador.usuario.nombre = request.POST.get('nombre', trabajador.usuario.nombre).strip()
-        trabajador.usuario.email = request.POST.get('email', trabajador.usuario.email).strip()
         trabajador.usuario.save()
 
         trabajador.cargo = request.POST.get('cargo', trabajador.cargo).strip()
